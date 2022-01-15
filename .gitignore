@@ -1,0 +1,4 @@
+/.vscode
+/Client
+/Server
+/clientTCPmultithread.c
