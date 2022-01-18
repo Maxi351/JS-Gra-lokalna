@@ -100,6 +100,9 @@ def listen_thread(sock):
         temp.num_cards_shown = list_shown
 
         global_stan_gry = temp
+        # print(global_stan_gry.num_cards_hidden)
+        # print(global_stan_gry.num_cards_shown)
+        # print(global_stan_gry.top_card)
 
     sock.close()
 
@@ -235,6 +238,10 @@ def game(screen):
     CARD_SIZE = h/4
     CARDS_RAMKA_OFFSET = h/20 +CARD_SIZE/2
 
+    color_tekstu = (255,255,255)
+
+    myfont = pygame.font.SysFont('Comic Sans MS', int(SCREEN_HEIGHT/7))
+
     cards = load_cards(CARD_SIZE)
 
     logo_pic = pygame.image.load('Grafiki/Logo.png')
@@ -255,9 +262,15 @@ def game(screen):
 
     pozycja_kart = [(w/2,h-CARDS_RAMKA_OFFSET),(CARDS_RAMKA_OFFSET,h/2),(w/2,CARDS_RAMKA_OFFSET),(w-CARDS_RAMKA_OFFSET,h/2)]
 
+    pozycja_liczb = [(w/2+CARD_SIZE/1.8,h-CARDS_RAMKA_OFFSET),
+                        (0+CARDS_RAMKA_OFFSET/2,h/2+CARD_SIZE/1.8),
+                        (w/2+CARD_SIZE/1.8,CARDS_RAMKA_OFFSET),
+                        (w-CARD_SIZE,h/2+CARD_SIZE/1.8)]
+
     while flags['gra_trwa'] and flags['rozgrywka']:
         events()
         stan_gry = global_stan_gry
+        id_gracz = stan_gry.player_id
 
         stan_gry.which_player = stan_gry.which_player-stan_gry.player_id
         if(stan_gry.which_player<0):
@@ -289,6 +302,18 @@ def game(screen):
         #karty graczy
         for i in range(4):
             screen.blit(cards[stan_gry.top_card[i]],cards[stan_gry.top_card[i]].get_rect(center=pozycja_kart[i]))
+        
+
+        #numery przy kartach
+        for i in range(4):
+            tekst = f'{stan_gry.num_cards_hidden[i]} / {stan_gry.num_cards_shown[i]}'
+            napis = myfont.render(tekst,False,color_tekstu)
+
+            screen.blit(napis,pozycja_liczb[i])
+
+        #id gracza
+        napis = myfont.render(f"id: {id_gracz}",False,color_tekstu)
+        screen.blit(napis,(0,0))
 
         pygame.display.flip()
 
