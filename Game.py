@@ -20,7 +20,7 @@ class Game_state:
     num_cards_hidden = [0,0,0,0]
     num_cards_shown = [0,0,0,0]
 
-FLAGA_PODNIESIENIE_TOTEMU = 0
+FLAGA_PODNIESIENIE_TOTEMU = 2
 FLAGA_WYLOZENIA_KARTY = 1
 
 #pygame.init()
@@ -33,7 +33,7 @@ global_clock = pygame.time.Clock()
 #global komunikacja
 global_stan_gry = Game_state()
 global_socket = None
-server_addr = ('localhost', 2300)
+server_addr = ('127.0.0.1', 1100)
 
 SCREEN_HEIGHT = 700
 SCREEN_WIDTH = 700
@@ -61,6 +61,8 @@ def connect_to_server():
             print("Error creating the socket: {}".format(ae))
         except socket.error as se:
             print("Exception on socket: {}".format(se))
+        events()
+    return None
 
 def listen_thread(sock):
 
@@ -343,11 +345,12 @@ def start_game(screen):
     #     flags['connecting']=False
     
     x.join()
-    flags["rozgrywka"] = True
-    game(screen)
+    if c is not None:
+        flags["rozgrywka"] = True
+        game(screen)
 
-    print("Zamykanie polaczenia")
-    c.join()
+        print("Zamykanie polaczenia")
+        c.join()
 
     buttons = buttons_temp
 

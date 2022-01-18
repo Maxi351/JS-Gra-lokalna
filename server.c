@@ -81,8 +81,9 @@ void * ListeningThread(void *arg){
   printf("Finished listening setup %d\n",newSocket);
   for(;;){
     //nasluchiwanie wiadomosci od gracza
-    if(recv(newSocket , player_messege , 2 ,0)<0){
+    if(recv(newSocket , player_messege , 2 ,0)<1){
       printf("Receive failed \n");
+      break;
     }
     else printf ("odebrano \n");
     //if(player_messege[0]==NULL)continue;
