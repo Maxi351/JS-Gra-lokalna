@@ -40,6 +40,7 @@ struct game_info {
   struct game_info *next;
   struct game_info *prvs;
   int player_socket[MAX_PLAYERS];
+  int game_running;
 };
 
 struct List {
@@ -80,6 +81,7 @@ void * ListeningThread(void *arg){
   exit_message[0]=(char)99;
   printf("Finished listening setup %d\n",newSocket);
   for(;;){
+    if(gi->game_running==0)break;
     //nasluchiwanie wiadomosci od gracza
     if(recv(newSocket , player_messege , 2 ,0)<1){
       printf("Receive failed \n");
@@ -99,6 +101,7 @@ void * ListeningThread(void *arg){
         }
     memset(&player_messege, 0, sizeof (player_messege));
     }
+    gi->game_running=0;
     delete_game(&Game_list,gi->game_id);
     send(newSocket,exit_message,sizeof(exit_message),0);
     printf("Player exited the game\n");
@@ -135,6 +138,7 @@ int main(){
         gra->game_id=++number_of_games;
         gra->numbers_of_players=MAX_PLAYERS;
         gra->order=0;
+        gra->game_running=1;
         int player_id = 0;
         add_game(&Game_list,gra);
         printf("Zalozono poczekalnie nr %d \n",gra->game_id);
