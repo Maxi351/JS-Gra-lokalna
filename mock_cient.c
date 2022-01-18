@@ -8,6 +8,8 @@
 #include <unistd.h> // for close
 #include<pthread.h>
 
+int amount_of_threads;
+
 void * TalkingThread (void *arg){
   int clientSocket = *((int *)arg);
   char message[] = "00";
@@ -15,7 +17,7 @@ void * TalkingThread (void *arg){
   printf("am talking to %d \n",clientSocket);  
   for(;;){
         scanf("%d",&msg);
-        if(msg!=2 && msg!=1)continue;
+        if(msg<1 || msg>3)continue;
         
         message[0]=(char)msg;
         message[1]=(char)1;
@@ -25,7 +27,11 @@ void * TalkingThread (void *arg){
                 printf("Send failed\n");
         }
         else printf("wyslano \n");
+        if(msg==3){
+          break;
+        }
   }
+  printf("Disconnecting, number of remaining threads %d\n",--amount_of_threads);
   pthread_exit(NULL);
 }
 
@@ -38,20 +44,23 @@ void * ListeningThread(void *arg){
     if(recv(clientSocket, buffer, 15, 0) < 0)
         {
             printf("Receive failed\n");
+
         }
     //Print the received message
+    if((int)buffer[0]==99)break;
+    if((int)buffer[0]==0)continue;
     for(int i=0; i<15 ; i++)
     {
       message[i]=(int)buffer[i];
       printf("%d ",message[i]);
     }
-    if(message[0]==0)continue;
     printf(" is the data received \n ");
     
 
 
     memset(&buffer, 0, sizeof (buffer));
   }
+  printf("Disconnecting, number of remaining threads %d\n",--amount_of_threads);
   pthread_exit(NULL);
 }
 
@@ -88,15 +97,13 @@ int main(){
     if( (pthread_create(&talk_id, NULL, TalkingThread, &clientSocket)) != 0 )
             printf("Failed to create thread\n");    
     pthread_detach(listen_id);
-     pthread_detach(talk_id);    
-
-
-        //Read the message from the server into the buffer
+    pthread_detach(talk_id);    
+    amount_of_threads = 2;
         
     printf("Am waiting\n");
-    for(;;);
+    while(amount_of_threads>0);
     printf("Stopped waiting\n");
-    //close(clientSocket);
+    close(clientSocket);
     
   return 0;
 }
