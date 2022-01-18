@@ -390,7 +390,7 @@ void start_game(struct game_info *gi){
       tmp->card_id=k;
 
       was_chosen[k]=1;  
-      printf("dano karte %d\n",k);
+      //printf("dano karte %d\n",k);
       push_q(&gi->players[i].cards_hidden,tmp);
       gi->players[i].num_cards_hidden++;
     }
