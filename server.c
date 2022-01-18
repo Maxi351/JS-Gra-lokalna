@@ -60,7 +60,6 @@ void push_s(struct Stack *stos, struct Card *karta);
 struct Card pull_s(struct Stack *stos);
 void add_game(struct List *lista,struct game_info *gra);
 void delete_game(struct List *lista,int id);
-struct game_info find_a_game (struct List lista,int id);
 
 //game functions
 void draw_a_card (struct game_info *gi, int who);
@@ -70,70 +69,6 @@ void take_all (struct game_info *gi, int who);
 void send_game_state(struct game_info *gi);
 void start_game(struct game_info *gi);
 
-pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
-
-/*void * TalkingThread(void *arg){
-  printf("New player talking \n");
-  struct thread_info *ti =arg;
-  struct game_info *gi =ti->gi;
-  int newSocket = ti->socket;
-  int player_id = ti->player_id;
-  int n=gi->should_send[player_id];
-  printf(" pid czytania %d\n",getpid());
-  printf("Finished talking setup\n");
-  for(;;){
-    printf("Am talking to  %d %d \n",gi,ti->player_id);
-    while(n!=1){
-      printf("flaga %d to %d \n",&gi->should_send[player_id] ,gi->should_send[player_id]);
-      sleep(5);
-      n=gi->should_send[player_id];
-      }
-    printf("Am talking to  %d %d \n",gi,ti->player_id);
-    gi->should_send[player_id]=0;
-    char message[3+3*gi->numbers_of_players];
-    message[0]=(char)gi->numbers_of_players;
-    message[1]=(char)player_id;
-    message[2]=(char)gi->order;
-    for (int iter=0; iter<gi->numbers_of_players;iter++){
-      message[3*iter+3]=(char)gi->players[iter].num_cards_hidden;
-      message[3*iter+4]=(char)gi->players[iter].num_cards_shown;
-      message[3*iter+5]=(char)gi->players[iter].cards_shown.top->card_id;
-    }
-    send(newSocket,message,sizeof(message),0);
-    sleep(100);
-  }
-    delete_game(&Game_list,gi->game_id);
-    printf("Player stopped talking\n");
-    pthread_exit(NULL);
-}*/
-
-void * socketThread(void *arg)
-{
-  char client_message[2000];
-  printf("new thread \n");
-  int newSocket = *((int *)arg);
-  int n;
-  for(;;){
-    n=recv(newSocket , client_message , 2000 , 0);
-    printf("%s\n",client_message);
-        if(n<1){
-            break;
-        }
-
-    char *message = malloc(sizeof(client_message));
-    strcpy(message,client_message);
-
-    sleep(1);
-    send(newSocket,message,sizeof(message),0);
-    memset(&client_message, 0, sizeof (client_message));
-
-    }
-    printf("Exit socketThread \n");
-
-    pthread_exit(NULL);
-}
-
-
 void * ListeningThread(void *arg){
   //gdy dolacza nowy gracz tworzymy mu nowy socket
   printf("New player entered \n");
@@ -141,6 +76,8 @@ void * ListeningThread(void *arg){
   struct game_info *gi = ti->gi;
   int newSocket = ti->socket;
   char player_messege[2];
+  char exit_message[15] = "000000000000000";
+  exit_message[0]=(char)99;
   printf("Finished listening setup %d\n",newSocket);
   for(;;){
     //nasluchiwanie wiadomosci od gracza
@@ -151,16 +88,18 @@ void * ListeningThread(void *arg){
     //if(player_messege[0]==NULL)continue;
     int code = (int)player_messege[0];
         if(code==1){
-          printf("wchodze \n");
           draw_a_card(gi,ti->player_id);
-          printf("wyszedlem\n");
         }
         if(code==2){
           raise_a_totem(gi,ti->player_id);
         }
+        if(code==3){
+          break;
+        }
     memset(&player_messege, 0, sizeof (player_messege));
     }
     delete_game(&Game_list,gi->game_id);
+    send(newSocket,exit_message,sizeof(exit_message),0);
     printf("Player exited the game\n");
     pthread_exit(NULL);
 }
@@ -168,12 +107,13 @@ void * ListeningThread(void *arg){
 int main(){
   //game variables
   int number_of_games=0;
+  int success = 1;
   //server variables
   int serverSocket, newSocket;
   struct sockaddr_in serverAddr;
   struct sockaddr_storage serverStorage;
   socklen_t addr_size;
-  
+  addr_size = sizeof serverStorage;
             //Create the socket. 
             serverSocket = socket(PF_INET, SOCK_STREAM, 0);
             // Configure settings of the server address struct
@@ -196,10 +136,10 @@ int main(){
         gra->order=0;
         int player_id = 0;
         add_game(&Game_list,gra);
-        printf("%d\n",Game_list.bot->game_id);
-        printf("%d\n",Game_list.top->game_id);
+        printf("Zalozono poczekalnie nr %d \n",gra->game_id);
+        //printf("%d\n",Game_list.bot->game_id);
+        //printf("%d\n",Game_list.top->game_id);
         //Accept call creates a new socket for the incoming connection
-        addr_size = sizeof serverStorage;
         while(player_id<MAX_PLAYERS)
           {
             if(listen(serverSocket,50)==0)
@@ -207,24 +147,17 @@ int main(){
             else
                 printf("Error\n");    
             newSocket = accept(serverSocket, (struct sockaddr *) &serverStorage, &addr_size);
-                printf("weszlo\n");
+                printf("przyjeto gracza\n");
             //increasing the numbers of players
-            pthread_t listen_id;
-            //pthread_t talk_id;
             gra->player_socket[player_id]=newSocket;
             struct thread_info *ti= malloc(sizeof(struct thread_info));
             ti->socket=newSocket;
             ti->gi=gra;
             ti->player_id=player_id++;   
             printf("Threading\n");
+            pthread_t listen_id;
             if( (pthread_create(&listen_id, NULL, ListeningThread, ti) )!= 0 )
-              printf("Failed to create thread\n");
-          //if( (pthread_create(&talk_id, NULL, TalkingThread, &ti)) != 0 )
-          //  printf("Failed to create thread\n");   
-
-            pthread_detach(listen_id);
-          //pthread_detach(talk_id);
-          //pthread_join(thread_id,NULL);
+              printf("Failed to create thread\n");  
             printf("dodano gracza %d\n",ti->player_id);
           }
           sleep(2);
@@ -291,15 +224,12 @@ void add_game(struct List *lista ,struct game_info *gra){
 
 void delete_game(struct List *lista, int id){
   if(lista->bot==NULL)return;
-  printf("flaga1\n");
   struct game_info *tmp= lista->bot;
-  printf("flaga2\n");
   while(tmp->game_id!=id)
     {
       if(tmp->next==NULL)return;
       tmp=tmp->next;
-    }
-  printf("flaga3\n");  
+    } 
   if(tmp==lista->bot && tmp==lista->top){
     lista->top=NULL;
     lista->bot=NULL;
@@ -316,18 +246,6 @@ void delete_game(struct List *lista, int id){
   tmp->prvs->next=tmp->next;
   tmp->next->prvs=tmp->prvs;
   }
-  printf("flaga4\n");
-}
-
-struct game_info find_a_game (struct List lista, int id){
-  struct game_info empty;
-  struct game_info tmp= *lista.bot;
-  while(tmp.game_id!=id)
-    {
-      if(tmp.next==NULL)return empty;
-      tmp=*tmp.next;
-    }
-  return tmp;  
 }
 
 void give_cards (struct game_info *gi,int from , int to){
@@ -364,10 +282,17 @@ void take_all (struct game_info *gi, int who){
 }
 
 void draw_a_card (struct game_info *gi, int who){
+  if(gi->players[who].num_cards_hidden==0){
+    printf("Gracz %d nie ma kart \n",who);
+    return;
+  }
+
   if(gi->order!=who){
     printf("Gracz %d probowal sie ruszyc w kolejce gracza %d \n",who,gi->order);
     return;
   } 
+
+  printf("Gracz %d dobiera karte \n",who);
 
   gi->players[who].num_cards_hidden--;
   gi->players[who].num_cards_shown++;
@@ -375,6 +300,10 @@ void draw_a_card (struct game_info *gi, int who){
   push_s(&gi->players[who].cards_shown,tmp);
   gi->order++;
   gi->order=gi->order%gi->numbers_of_players;
+  while(gi->players[gi->order].num_cards_hidden==0){
+    gi->order++;
+    gi->order=gi->order%gi->numbers_of_players;
+  }
   printf("dobrano karte \n");
   send_game_state(gi);
 
@@ -382,6 +311,10 @@ void draw_a_card (struct game_info *gi, int who){
 
 void raise_a_totem (struct game_info *gi,  int player){
   printf("Gracz %d podniosl totem \n",player);
+  if(gi->players->num_cards_shown==0){
+    printf("Gracz %d nie ma kart przed soba \n",player);
+    return;
+  }
   int tmp=gi->players[player].cards_shown.top->card_id;
   for(int i=0; i<gi->numbers_of_players ; i++){
     if(i==player)continue;
@@ -394,6 +327,13 @@ void raise_a_totem (struct game_info *gi,  int player){
 }
 
 void send_game_state(struct game_info *gi){
+
+  for(int i=0; i<gi->numbers_of_players;i++){
+    if(gi->players->num_cards_hidden==0 && gi->players->num_cards_shown==0){
+      printf("gracz %d wygral \n",i);
+    }
+  }
+
   for(int i=0; i<gi->numbers_of_players ; i++){
     //printf("tworze wiadomosc dla gracza %d\n",i);
     char message[]= "000000000000000";
@@ -435,16 +375,19 @@ void start_game(struct game_info *gi){
       i=i%MAX_PLAYERS;
       struct Card *tmp = malloc(sizeof(struct Card));
       tmp->below=NULL;
-      int id=rand()%number_of_cards;
-      int j=0;
-      for(int k=0; j<id; k++){
+      int id=rand()%number_of_cards--;
+      printf("wylosowano %d  ", id);
+      int k=0;
+      for(int j=0; j<=id; k++){
           if(was_chosen[k]==0)j++;
       }
-      tmp->card_id=j;
-      was_chosen[id]=1;  
+      while(was_chosen[k]==1)k++;
+      tmp->card_id=k;
+
+      was_chosen[k]=1;  
+      printf("dano karte %d\n",k);
       push_q(&gi->players[i].cards_hidden,tmp);
       gi->players[i].num_cards_hidden++;
-      number_of_cards--;
     }
   printf("Cards drawn\n");
   send_game_state(gi);   
