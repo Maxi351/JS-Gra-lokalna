@@ -353,16 +353,19 @@ void send_game_state(struct game_info *gi){
 
   for(int i=0; i<gi->numbers_of_players ; i++){
     //printf("tworze wiadomosc dla gracza %d\n",i);
-    char message[]= "000000000000000";
-    message[0]=(char)gi->numbers_of_players;
-    message[1]=(char)i;
-    message[2]=(char)gi->order;
+    char message[]= "000000000000000000";
+    message[0]=(char)110;
+    message[1]=(char)110;
+    message[2]=(char)110;
+    message[3]=(char)gi->numbers_of_players;
+    message[4]=(char)i;
+    message[5]=(char)gi->order;
     //printf("flaga \n");
     for (int iter=0; iter<gi->numbers_of_players;iter++){
-      message[3*iter+3]=(char)gi->players[iter].num_cards_hidden;
-      message[3*iter+4]=(char)gi->players[iter].num_cards_shown;
-      if(gi->players[iter].num_cards_shown==0) message[3*iter+5] = (char)75;
-      else message[3*iter+5]=(char)gi->players[iter].cards_shown.top->card_id;
+      message[3*iter+6]=(char)gi->players[iter].num_cards_hidden;
+      message[3*iter+7]=(char)gi->players[iter].num_cards_shown;
+      if(gi->players[iter].num_cards_shown==0) message[3*iter+8] = (char)75;
+      else message[3*iter+8]=(char)gi->players[iter].cards_shown.top->card_id;
       //printf("flaga %d\n",iter);
     }
     printf("wysylam do %d \n",gi->player_socket[i]);
