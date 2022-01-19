@@ -114,6 +114,7 @@ int main(){
   //game variables
   int number_of_games=0;
   int success = 1;
+  srand(time(NULL));
   //server variables
   int serverSocket, newSocket;
   struct sockaddr_in serverAddr;
