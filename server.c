@@ -392,7 +392,7 @@ void start_game(struct game_info *gi){
       int id=rand()%number_of_cards--;
       printf("wylosowano %d  ", id);
       int k=0;
-      for(int j=0; j<=id; k++){
+      for(int j=0; j<id; k++){
           if(was_chosen[k]==0)j++;
       }
       while(was_chosen[k]==1)k++;
