@@ -106,6 +106,7 @@ void * ListeningThread(void *arg){
     delete_game(&Game_list,gi->game_id);
     send(newSocket,exit_message,sizeof(exit_message),0);
     printf("Player exited the game\n");
+    close(newSocket);
     pthread_exit(NULL);
 }
 
