@@ -260,12 +260,14 @@ void delete_game(struct List *lista, int id){
 void give_cards (struct game_info *gi,int from , int to){
   printf("dracz %d daje karty graczowi %d \n",from ,to);
   for (int i=0 ; i<gi->players[from].num_cards_shown ; i++){
-    struct Card tmp =pull_s( &gi->players[from].cards_shown);
-    push_q(&gi->players[to].cards_hidden,&tmp);
+    struct Card tmp = malloc(sizeof(struct Card));
+    *tmp = pull_s( &gi->players[from].cards_shown);
+    push_q(&gi->players[to].cards_hidden,tmp);
   }
   for (int i=0 ; i<gi->players[to].num_cards_shown ; i++){
-    struct Card tmp =pull_s( &gi->players[to].cards_shown);
-    push_q(&gi->players[to].cards_hidden,&tmp);
+    struct Card *tmp = malloc(sizeof(struct Card));
+    tmp = pull_s( &gi->players[to].cards_shown);
+    push_q(&gi->players[to].cards_hidden,tmp);
   }
   gi->players[to].num_cards_hidden+=gi->players[from].num_cards_shown;
   gi->players[to].num_cards_hidden+=gi->players[to].num_cards_shown;
@@ -279,16 +281,17 @@ void take_all (struct game_info *gi, int who){
   printf("gracz %d bierze karty \n",who);
   int cards_added = 0;
   for (int i=0 ; i<gi->numbers_of_players ; i++){
-    for ( int j=0; j<gi->players[i].num_cards_shown ; j++){
-      struct Card tmp =pull_s( &gi->players[i].cards_shown);
-      push_q(&gi->players[who].cards_hidden,&tmp);
+    for ( int j=0; j<gi->players[i].num_cards_shown; j++){
+      struct Card *tmp = malloc(sizeof(struct Card));
+      *tmp = pull_s( &gi->players[i].cards_shown);
+      push_q(&gi->players[who].cards_hidden,tmp);
     }
     cards_added+=gi->players[i].num_cards_shown;
     gi->players[i].num_cards_shown=0;   
   }
   gi->players[who].num_cards_hidden+=cards_added;
   gi->order=who;
-
+  
   send_game_state(gi);
 }
 
@@ -357,7 +360,7 @@ void send_game_state(struct game_info *gi){
     for (int iter=0; iter<gi->numbers_of_players;iter++){
       message[3*iter+3]=(char)gi->players[iter].num_cards_hidden;
       message[3*iter+4]=(char)gi->players[iter].num_cards_shown;
-      if(gi->players[iter].cards_shown.top==NULL) message[3*iter+5] = (char)75;
+      if(gi->players[iter].num_cards_shown==0) message[3*iter+5] = (char)75;
       else message[3*iter+5]=(char)gi->players[iter].cards_shown.top->card_id;
       //printf("flaga %d\n",iter);
     }
@@ -368,6 +371,8 @@ void send_game_state(struct game_info *gi){
 
 void start_game(struct game_info *gi){
  //zerowanie gry
+
+
   gi->game_running=1;
   for(int i=0; i<gi->numbers_of_players;i++)
   {
