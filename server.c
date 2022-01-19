@@ -81,12 +81,13 @@ void * ListeningThread(void *arg){
   exit_message[0]=(char)99;
   printf("Finished listening setup %d\n",newSocket);
   for(;;){
-    if(gi->game_running==0)break;
-    //nasluchiwanie wiadomosci od gracza
     if(recv(newSocket , player_messege , 2 ,0)<1){
       printf("Receive failed \n");
       break;
     }
+    if(gi->game_running==-1)break;
+    if(gi->game_running==0)continue;
+    //nasluchiwanie wiadomosci od gracza
     else printf ("odebrano \n");
     //if(player_messege[0]==NULL)continue;
     int code = (int)player_messege[0];
@@ -101,7 +102,7 @@ void * ListeningThread(void *arg){
         }
     memset(&player_messege, 0, sizeof (player_messege));
     }
-    gi->game_running=0;
+    gi->game_running=-1;
     delete_game(&Game_list,gi->game_id);
     send(newSocket,exit_message,sizeof(exit_message),0);
     printf("Player exited the game\n");
@@ -138,7 +139,7 @@ int main(){
         gra->game_id=++number_of_games;
         gra->numbers_of_players=MAX_PLAYERS;
         gra->order=0;
-        gra->game_running=1;
+        gra->game_running=0;
         int player_id = 0;
         add_game(&Game_list,gra);
         printf("Zalozono poczekalnie nr %d \n",gra->game_id);
@@ -175,6 +176,7 @@ int main(){
 void push_q(struct Queue *kolejka,struct Card *karta){
   karta->below=NULL;
   if(kolejka->bot==NULL){
+    printf("wrzucam pierwsza karte\n");
     kolejka->bot=karta;
     kolejka->top=karta;
   }
@@ -193,7 +195,9 @@ struct Card *pull_q ( struct Queue *kolejka){
 }
 
 void push_s(struct Stack *stos,struct Card *karta){
+  karta->below=NULL;
   if(stos->top==NULL){
+    printf("wrzucam pierwsza karte \n");
     stos->top=karta;
     karta->below=NULL;
   }
@@ -254,6 +258,7 @@ void delete_game(struct List *lista, int id){
 }
 
 void give_cards (struct game_info *gi,int from , int to){
+  printf("dracz %d daje karty graczowi %d \n",from ,to);
   for (int i=0 ; i<gi->players[from].num_cards_shown ; i++){
     struct Card tmp =pull_s( &gi->players[from].cards_shown);
     push_q(&gi->players[to].cards_hidden,&tmp);
@@ -271,6 +276,7 @@ void give_cards (struct game_info *gi,int from , int to){
 }
 
 void take_all (struct game_info *gi, int who){
+  printf("gracz %d bierze karty \n",who);
   int cards_added = 0;
   for (int i=0 ; i<gi->numbers_of_players ; i++){
     for ( int j=0; j<gi->players[i].num_cards_shown ; j++){
@@ -316,13 +322,15 @@ void draw_a_card (struct game_info *gi, int who){
 
 void raise_a_totem (struct game_info *gi,  int player){
   printf("Gracz %d podniosl totem \n",player);
-  if(gi->players->num_cards_shown==0){
+  if(gi->players[player].num_cards_shown==0){
     printf("Gracz %d nie ma kart przed soba \n",player);
     return;
   }
+  printf("gracz moze podniesc totem\n");
   int tmp=gi->players[player].cards_shown.top->card_id;
   for(int i=0; i<gi->numbers_of_players ; i++){
     if(i==player)continue;
+    if(gi->players[i].num_cards_shown==0)continue;
     if(gi->players[i].cards_shown.top->card_id/4==tmp/4){
       give_cards(gi,player,i);
       return;  
@@ -360,6 +368,7 @@ void send_game_state(struct game_info *gi){
 
 void start_game(struct game_info *gi){
  //zerowanie gry
+  gi->game_running=1;
   for(int i=0; i<gi->numbers_of_players;i++)
   {
     gi->players[i].cards_shown.top=NULL;
@@ -390,7 +399,7 @@ void start_game(struct game_info *gi){
       tmp->card_id=k;
 
       was_chosen[k]=1;  
-      //printf("dano karte %d\n",k);
+      printf("dano karte %d\n",k);
       push_q(&gi->players[i].cards_hidden,tmp);
       gi->players[i].num_cards_hidden++;
     }
