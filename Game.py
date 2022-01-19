@@ -79,15 +79,44 @@ def listen_thread(sock):
 
     sock.settimeout(1)
 
-
+    last = []
 
     while flags['gra_trwa'] and flags['conection_online']:
-
         check_connection(sock)
+
+        # while(last!=[110,110,110]):
+        #     try:
+        #         msg = sock.recv(1,socket.MSG_WAITALL) 
+        #     except TimeoutError:
+        #         continue
+        #     last.append(ord(msg.decode()[0]))
+        #     if len(last) >3:
+        #         last.pop(0)
+        #     print(last)
+        #     check_connection(sock)
+
+        try:
+            msg = sock.recv(1,socket.MSG_WAITALL) 
+        except TimeoutError:
+            continue
+        
+        if len(msg)>0:
+            last.append(ord(msg.decode()[0]))
+        
+        if len(last) >3:
+            last.pop(0)
+
+        #print(last)
+
+        if last!=[110,110,110]:
+            continue
+
+        last = []
+
         if flags['conection_online'] == False:
             continue
         try:
-            msg = sock.recv(1*15,socket.MSG_WAITALL)
+            msg = sock.recv(1*15,socket.MSG_WAITALL) 
         except TimeoutError:
             continue
         # except:
@@ -98,6 +127,11 @@ def listen_thread(sock):
             continue
 
         print("Stan gry: ", msg)
+
+        listaM = []
+        for i in msg:
+            listaM.append(int(i))
+        print(listaM)
 
         msg = msg.decode()
 
@@ -338,7 +372,7 @@ def game(screen):
         #print(stan_gry.which_player)
 
 
-        print(stan_gry.top_card)
+
         #karty graczy
         for i in range(4):
             
