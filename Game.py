@@ -1,23 +1,21 @@
-from distutils.log import error
-import errno
 from pickle import TRUE
 import pygame
 import sys
 import threading
-import multiprocessing
 from copy import deepcopy
 from Button import Button
 import time
 import math
 import socket
+from copy import deepcopy
 
 
 class Game_state:
     number_of_players=0
     player_id = 1
     which_player = 0
-    top_card = [0,0,0,0]
-    num_cards_hidden = [0,0,0,0]
+    top_card = [75,75,75,75]
+    num_cards_hidden = [-1,-1,-1,-1]
     num_cards_shown = [0,0,0,0]
 
 FLAGA_PODNIESIENIE_TOTEMU = 2
@@ -29,6 +27,9 @@ pygame.font.init()
 flags = {'gra_trwa': False,'connecting':False,'conection_online':False,'rozgrywka':False,'start_gra':False}
 buttons = []
 global_clock = pygame.time.Clock()
+
+lock = threading.Lock()
+
 
 #global komunikacja
 global_stan_gry = Game_state()
@@ -51,10 +52,12 @@ def connect_to_server():
         try:
             global_socket.connect(server_addr)
             print("Connected to {:s}".format(repr(server_addr)))
-            
+
+            flags['conection_online'] = True
+
             con = threading.Thread(target=listen_thread, args=(global_socket,))
             con.start()
-            flags['conection_online'] = True
+
             
             return con
         except AttributeError as ae:
@@ -64,17 +67,32 @@ def connect_to_server():
         events()
     return None
 
+def log_out():
+    try:
+        global_socket.send(chr(13).encode())
+    except BaseException as e:
+        print(f"error log_out {e}")
+
 def listen_thread(sock):
 
     global global_stan_gry
 
     sock.settimeout(1)
 
-    while flags['gra_trwa']:
+
+
+    while flags['gra_trwa'] and flags['conection_online']:
+
+        check_connection(sock)
+        if flags['conection_online'] == False:
+            continue
         try:
             msg = sock.recv(1*15,socket.MSG_WAITALL)
         except TimeoutError:
             continue
+        # except:
+        #     flags['conection_online'] = False
+        #     break
 
         if msg == b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00' or len(msg)<15:
             continue
@@ -100,13 +118,27 @@ def listen_thread(sock):
         temp.top_card = list_top
         temp.num_cards_hidden = list_hidden
         temp.num_cards_shown = list_shown
-
-        global_stan_gry = temp
+        with lock:
+            global_stan_gry = temp
         # print(global_stan_gry.num_cards_hidden)
         # print(global_stan_gry.num_cards_shown)
         # print(global_stan_gry.top_card)
-
+    if flags['conection_online']:
+        log_out()
+    print("Zmkniento listen_thread")
+    print(flags['gra_trwa'], flags['conection_online'])
     sock.close()
+
+def check_connection(sock):
+    
+    try:
+        sock.send(chr(13).encode())
+    except BrokenPipeError:
+        flags['conection_online'] = False
+    except BaseException as e:
+        print(f'Error podczas chceck connection {e}')
+
+
 
 
 def load_cards(size_x,size_y = None):
@@ -269,9 +301,13 @@ def game(screen):
                         (w/2+CARD_SIZE/1.8,CARDS_RAMKA_OFFSET),
                         (w-CARD_SIZE,h/2+CARD_SIZE/1.8)]
 
-    while flags['gra_trwa'] and flags['rozgrywka']:
+
+    is_winner = -1
+
+    while flags['gra_trwa'] and flags['rozgrywka'] and flags['conection_online'] and is_winner == -1:
         events()
-        stan_gry = global_stan_gry
+        with lock:
+            stan_gry = deepcopy(global_stan_gry)
         id_gracz = stan_gry.player_id
 
         stan_gry.which_player = stan_gry.which_player-stan_gry.player_id
@@ -301,8 +337,11 @@ def game(screen):
 
         #print(stan_gry.which_player)
 
+
+        print(stan_gry.top_card)
         #karty graczy
         for i in range(4):
+            
             screen.blit(cards[stan_gry.top_card[i]],cards[stan_gry.top_card[i]].get_rect(center=pozycja_kart[i]))
         
 
@@ -316,10 +355,55 @@ def game(screen):
         #id gracza
         napis = myfont.render(f"id: {id_gracz}",False,color_tekstu)
         screen.blit(napis,(0,0))
-
         pygame.display.flip()
 
+        for i in range(4):
+            if stan_gry.num_cards_hidden[i] == 0 and stan_gry.num_cards_shown[i]==0:
+                is_winner=i
+                break
+
+    screen.fill((0,0,0))
+    if flags['conection_online'] == False and flags['gra_trwa'] and flags['rozgrywka']:
+        pic = pygame.image.load('Grafiki/Disconnect.jpg')
+        pic = pygame.transform.scale(pic, (h*(16/9), h))
+        screen.blit(pic,pic.get_rect(center=(w/2,h/2)))
+        pygame.display.flip()
+
+        f = True
+        while f:
+            for event in pygame.event.get():
+                if event.type == pygame.MOUSEBUTTONDOWN or event.type == pygame.KEYDOWN:
+                    print("Koniec")
+                    f = False
+
+ 
+    else:
+        #log_out()
+        if is_winner!= -1:
+
+            if is_winner == stan_gry.player_id:
+                pic = pygame.image.load('Grafiki/You_win.jpg')
+                pic = pygame.transform.scale(pic, (h*(16/9), h))
+            else:
+                pic = pygame.image.load('Grafiki/You_lose.png')
+                pic = pygame.transform.scale(pic, (h*(16/9), h))
+            
+            screen.blit(pic,pic.get_rect(center=(w/2,h/2)))
+            pygame.display.flip()
+
+
+            f = True
+            while f:
+                for event in pygame.event.get():
+                    if event.type == pygame.MOUSEBUTTONDOWN or event.type == pygame.KEYDOWN:
+                        print("Koniec")
+                        f = False
+        
+
+    
+
     flags['rozgrywka']=False
+    flags['gra_trwa'] = False
 
 
 def start_game(screen):
@@ -410,7 +494,9 @@ background_pic = pygame.transform.scale(background_pic, (SCREEN_WIDTH, SCREEN_HE
 transparent_screen = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA, 32)
 pygame.draw.rect(transparent_screen,(0,0,0,128),pygame.Rect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT))
 
+
 generate_menu()
+
 
 flags['gra_trwa']=True
 
@@ -421,6 +507,8 @@ while flags['gra_trwa']:
     pygame.display.flip()
     if(flags['start_gra']):
         start_game(screen)
+        screen = pygame.display.set_mode([SCREEN_WIDTH, SCREEN_HEIGHT])
+
 print("Zamykanie pygame")
 pygame.quit()
 print("Koniec gry")
