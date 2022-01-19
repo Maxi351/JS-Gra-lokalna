@@ -260,13 +260,13 @@ void delete_game(struct List *lista, int id){
 void give_cards (struct game_info *gi,int from , int to){
   printf("dracz %d daje karty graczowi %d \n",from ,to);
   for (int i=0 ; i<gi->players[from].num_cards_shown ; i++){
-    struct Card tmp = malloc(sizeof(struct Card));
+    struct Card *tmp = malloc(sizeof(struct Card));
     *tmp = pull_s( &gi->players[from].cards_shown);
     push_q(&gi->players[to].cards_hidden,tmp);
   }
   for (int i=0 ; i<gi->players[to].num_cards_shown ; i++){
     struct Card *tmp = malloc(sizeof(struct Card));
-    tmp = pull_s( &gi->players[to].cards_shown);
+    *tmp = pull_s( &gi->players[to].cards_shown);
     push_q(&gi->players[to].cards_hidden,tmp);
   }
   gi->players[to].num_cards_hidden+=gi->players[from].num_cards_shown;
@@ -311,6 +311,7 @@ void draw_a_card (struct game_info *gi, int who){
   gi->players[who].num_cards_hidden--;
   gi->players[who].num_cards_shown++;
   struct Card *tmp = pull_q(&gi->players[who].cards_hidden);
+  printf("wzialem %d\n",tmp->card_id);
   push_s(&gi->players[who].cards_shown,tmp);
   gi->order++;
   gi->order=gi->order%gi->numbers_of_players;
